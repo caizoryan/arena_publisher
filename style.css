@@ -1,0 +1,8 @@
+.ui {
+	position: fixed;
+	top: 0;
+	right: 0;
+	width: 25vw;
+	height: 80vh;
+	background: yellow;
+}
