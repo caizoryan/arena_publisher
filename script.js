@@ -1,51 +1,54 @@
 import { Q5 as p5 } from "./lib/q5/q5.js"
 import { Scale } from "./scale.js"
 import { reduceprops } from "./processor.js"
+import {dom} from './dom.js'
 
-let host = 'http://localhost:3000/api/'
-// let host = 'https://api.are.na/v2/'
+let viewport = window.innerWidth > 1600 ? 1 : .45
+let spread = 0
+
+// let host = 'http://localhost:3000/api/'
+let a = localStorage.getItem('auth')
+let auth =  a ? a : ''
+let host = 'https://api.are.na/v2/'
 let slug = 'book-making-as-meditative-practice-as-excuse-to-make-books-with-friends-as-friends-who-love-to-meditate'
-let getchannel = (slug) => fetch(host +'channels/'+ slug ).then((res) => res.json())
-let viewport = 1
 
-export let isNode = (el) => el && el.nodeName && el.nodeType
 
-/** @returns {HTMLElement} */
-export let dom = (tag, ...contents) => {
-	let el = "div"
-	let classes = []
-	let id = ""
-	if (Array.isArray(tag) && contents.length == 0) return dom(...tag.concat(contents))
-
-	let parseclass = ((str) => {
-		let identifiers = str.split(/([\.#]?[^\s#.]+)/).map(e => e.trim()).filter(e => e != "")
-
-		if (!(/^\.|#/.test(identifiers[0]))) {
-			el = identifiers[0]
-			identifiers.shift()
-		}
-
-		identifiers.forEach(i => {
-			if (i[0] == ".") classes.push(i.slice(1))
-			if (i[0] == "#") id = i.slice(1)
-		})
-	})(tag)
-
-	let doc = document.createElement(el)
-
-	classes.forEach((c) => doc.classList.add(c))
-	id ? doc.id = id : null
-
-	contents.forEach((e) => {
-		if (typeof e == 'string') doc.innerText += e
-		else if (Array.isArray(e)) doc.appendChild(dom(...e))
-		else if (isNode(e)) doc.appendChild(e)
-		else if (typeof e == 'object') Object.entries(e).map(([k, v]) => doc[k] = v)
+// ----------------- +x+ --
+// Are.na Functions
+// ----------------- +x+ --
+const add_block = (slug, content, title,) => {
+	console.log("adding", title, "to", slug)
+	fetch(host + "channels/" + slug + "/blocks", {
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: "Bearer " + auth,
+		},
+		method: "POST",
+		body: JSON.stringify({
+			content: content,
+		}),
 	})
+		.then((response) => response.json())
+		.then((data) => {
+			let block_id = data.id;
+			// TODO: better way to do this
+			if (title !== "" || title != undefined) return update_block(block_id, { title: title }, slug);
+			else return data
+		});
+};
+const getchannel = (slug) => fetch(host + 'channels/' + slug, {
+		headers: {
+			Authorization: `Bearer ${auth}`,
+			cache: "no-store",
+			"Cache-Control": "max-age=0, no-cache",
+			referrerPolicy: "no-referrer",
+		},
+	}).then((res) => res.json())
 
-	return doc
-}
 
+// ----------------- +x+ --
+// ++ BOOK CLASSES
+// ----------------- +x+ --
 /** 
 @typedef {{
 	margin: {
@@ -114,8 +117,8 @@ class Structure {
 		}, props[1])
 	}
 
-	verso_hanglines() { return this.verso.hanglines ? this.verso_hanglines : [] }
-	recto_hanglines() { return this.recto.hanglines ? this.recto_hanglines : [] }
+	verso_hanglines() { return this.verso.hanglines ? this.verso.hanglines : [] }
+	recto_hanglines() { return this.recto.hanglines ? this.recto.hanglines : [] }
 
 	/**@returns {{x:Unit, y:Unit, w:Unit, h: Unit}[]}*/
 	// recto_columns() {
@@ -266,7 +269,7 @@ class Canvas {
 		};
 
 		p.draw = () => {
-			p.background(255)
+			p.background(200)
 			p.noFill();
 			p.noLoop()
 		};
@@ -294,17 +297,17 @@ class Canvas {
 			let x = left
 			let y = top
 			p.image(verso_image, x, y, verso_image.width, verso_image.height)
-			p.opacity(.8)
+			p.opacity(.9)
 		}
 
-		let draw_recto = (graphic, spread, ) => {
-			let color =  "white"
+		let draw_recto = (graphic, spread,) => {
+			let color = "white"
 			let width = book.structure.verso.width.px + book.structure.recto.width.px
 			let recto_image = book.recto_image(graphic, spread, color, .5)
 
 			p.image(
-				recto_image, left + width / 2, top , recto_image.width, recto_image.height)
-			p.opacity(.8)
+				recto_image, left + width / 2, top, recto_image.width, recto_image.height)
+			p.opacity(.9)
 		}
 
 		draw_verso(graphic, book.current_spread)
@@ -359,7 +362,7 @@ class Canvas {
 		let left = (this.size.width.px - width) / 2
 		let top = (this.size.height.px - height.px) / 2
 
-		p.image(graphic, left, top, width.px, height.px)
+		p.image(graphic, left, top, width, height.px)
 		return graphic
 	}
 }
@@ -412,9 +415,9 @@ class Spread {
 		// this.structure.recto_hanglines().forEach(y => {
 		// 	p.line(0, y.px, p.width, y.px)
 		// })
-		// this.structure.verso_hanglines().forEach(y => {
-		// 	p.line(0, y.px, p.width, y.px)
-		// })
+		this.structure.verso_hanglines().forEach(y => {
+			p.line(0, y.px, p.width, y.px)
+		})
 	}
 
 	draw(p) {
@@ -570,7 +573,7 @@ class Book {
 		_p.background(color)
 		if (this.grid) this.spreads[number].draw_grid(_p, [(number * 2), (number * 2) + 1])
 		this.spreads[number].draw(_p)
-		if (number == 0) _p.background(0)
+		if (number == 0) { _p.background(200) }
 		let img = _p.get(0, 0, _p.width * width, _p.height)
 
 		return img
@@ -611,14 +614,14 @@ class Book {
 			// TODO: update structure
 
 			let spread_num_1 = this.page_to_spread(num1)
-			let img = this.verso_image(p, spread_num_1, "white",.5)
+			let img = this.verso_image(p, spread_num_1, "white", .5)
 			this.draw_img(p, img, 0, 0)
 		}
 
 		if (num2) {
 			let spread_num_2 = this.page_to_spread(num2)
 			let img = this.recto_image(p, spread_num_2, "white", .5)
-			let x =  0
+			let x = 0
 			this.draw_img(p, img, p.width / 2 + x, 0)
 		}
 	}
@@ -628,6 +631,9 @@ class Book {
 	}
 }
 
+// ----------------- +x+ --
+// ++ FRAMES
+// ----------------- +x+ --
 class ImageFrame {
 	constructor(props) {
 		this.props = props
@@ -640,10 +646,10 @@ class ImageFrame {
 		let y = typeof this.props.y == 'function' ? this.props.y(prop.structure) : this.props.y
 		// if length/width is given use that to calculate height
 		let w = typeof this.props.length == 'function' ? this.props.length(prop.structure) : this.props.length
-		let ratio =  w.px /this.image.width 
+		let ratio = w.px / this.image.width
 		let h = this.image.height * ratio
 
-		p.image(this.image, x.px,y.px, w.px, h)
+		p.image(this.image, x.px, y.px, w.px, h)
 	}
 }
 
@@ -661,6 +667,10 @@ class TextFrame {
 	}
 }
 
+
+// ----------------- +x+ --
+// ++ LINE FUNCTIONS
+// ----------------- +x+ --
 /**
 @param {string} text
 @param {Unit} length
@@ -910,6 +920,7 @@ function draw_paragraph(p, paragraph, grid) {
 		p.fill(_paragraph.color)
 		p.textStyle(p.NORMAL)
 
+		p.textLeading(_paragraph.leading.px)
 
 
 		paragraph_state.word_count = start_length - _paragraph.text.length
@@ -927,7 +938,6 @@ function draw_paragraph(p, paragraph, grid) {
 			},
 			_paragraph.hooks
 		)
-
 		_paragraph.text = text
 		paragraph_state.vertical_pos += p.textLeading() * leading
 		//leading.px
@@ -953,56 +963,171 @@ function draw_paragraph(p, paragraph, grid) {
 	return _paragraph.text
 }
 
-// there will be a spread
-
-// a scale for sizing
-
-// a grid for locating items
-
-// a data structure from which spread will be rendered
-
-// a book for doing imposition
-
-// init p5
+let display = true
+let increment =.5 
+let count = 0
 let el = document.querySelector(".q5")
 let p = new p5('instance', el);
 let s = new Scale()
-
 let page_width = s.inch(11)
 let page_height = s.inch(8.5)
-
 let canvas = new Canvas(p, s, el, { width: page_width, height: page_height })
 let grid = new Structure([{
 	width: s.inch(5),
 	height: s.inch(8),
+	hanglines: [
+		s.em(3),
+		s.em(12),
+		s.em(21),
+		s.em(30),
+	],
 	margin: { top: s.em(1), inside: s.em(1), outside: s.em(1), bottom: s.em(1), }
 }, {
 	width: s.inch(5),
 	height: s.inch(8),
+	margin: { top: s.em(1), inside: s.em(1), outside: s.em(1), bottom: s.em(1), }
 }])
+let book = new Book([])
 
+let data
+let contents
 
+// ----------------- +x+ --
+// ++ Utility functions
+// ----------------- +x+ --
+let addpage = () => {
+	data.push([])
+	data.push([])
+}
+
+let nextpage = () => {
+	if (spread > book.spreads.length - 2) return
+	spread += 1
+	book.current_spread = spread
+	updateui()
+	updatebar()
+	render()
+}
+
+let prevpage = () => {
+	if (spread == 0) return
+	spread -= 1
+	book.current_spread = spread
+	updateui()
+	updatebar()
+	render()
+}
+
+let toggledisplay = () => {
+	display = !display
+	render()
+	updatebar()
+}
+
+let savelocal = () => { localStorage.setItem('data', JSON.stringify(data)) }
+let sync = () => {
+	add_block('bookmaking-data', JSON.stringify(data, null, 2))
+}
+
+let findblockids = () => {
+	let ids = []
+	// go through data
+	data.forEach(
+		// spreads
+		f => f.forEach(
+
+			// items
+			d => d.forEach(
+
+				// props (look through each prop to find id prop)
+				// can probably cache this....
+				a => {
+					if (Array.isArray(a) && a[0] == 'id') { ids.push(a[1]) }
+				}
+
+			)))
+
+	return ids
+}
+
+let add_block_to_spread = block => {
+	console.log(book.current_spread)
+	if (block.class == "Text")
+		data[book.current_spread].push([
+			'TextBlock',
+			['text', block.content],
+			['id', block.id],
+
+			...defaulttextprops,
+			['font_family', 'sans-serif'],
+			["x", ["verso", 0, 'x']],
+			["y", ["em", count++ * 12 + 2]],
+			['height', ['em', 12]],
+			['length', ['em', 18]],
+		])
+
+	if (block.class == "Image")
+		data[book.current_spread].push(['ImageBlock',
+			['src', block.image.display.url],
+			['id', block.id],
+			["x", ["verso", 0, 'x']],
+			["y", ["em", count++ * 12 + 2]],
+			['length', ['em', 18]],
+		])
+
+	updateui()
+	render()
+}
+
+// ----------------- +x+ --
+// ++ Init functions
+// ----------------- +x+ --
 getchannel(slug)
 	.then(res => { init(res) })
 
+getchannel('bookmaking-data')
+	.then(res => {
+		let latest_block = res.contents.sort((a, b) => a.position - b.position).pop()
+		data = JSON.parse(latest_block.content)
 
+		console.log(data)
+		render()
+	})
+
+
+
+// ----------------- +x+ --
+// ++ UI PREP
+// ----------------- +x+ --
+let ui = dom('.ui')
+document.body.appendChild(ui)
+
+let arena_ui = dom('.arena-ui')
+document.body.appendChild(arena_ui)
+
+let bar = dom('.bar')
+document.body.appendChild(bar)
+
+// ----------------- +x+ --
+// ++ UI Recipes
+// ----------------- +x+ --
+
+// Edit UI
 let frame = arr => {
 	if (arr[0] == "TextBlock" || arr[0] == "TextFrame") return new TextFrame(reduceprops(arr.slice(1)))
 	if (arr[0] == "ImageBlock") return new ImageFrame(reduceprops(arr.slice(1)))
 }
-
 let frames = arr => arr.map(frame)
-let data
-
 let renderframeui = (items) => {
 	let box = document.createElement('div')
 
 	box.classList.add('box')
 	ui.appendChild(box)
 
-	items.forEach(
+	items.slice(1).forEach(
 		(item, i) => {
-			if (i == 0) return
+			console.log(item)
+			let keylabel = dom(['span.key', item[0] + " : "])
 			let property = dom('.property', {
 				onclick: (e) => {
 					if (e.metaKey) {
@@ -1010,7 +1135,7 @@ let renderframeui = (items) => {
 						buffer.push(item)
 					}
 				}
-			}, ['span.key', item[0] + " : "])
+			}, keylabel)
 
 			let onkeydown = (e) => {
 				if (e.key == 'ArrowRight' || e.key == 'ArrowLeft') { e.stopPropagation() }
@@ -1037,6 +1162,7 @@ let renderframeui = (items) => {
 					render()
 				}
 			}
+
 			if (Array.isArray(item[1])) {
 				let key = item[1][0]
 				if (
@@ -1074,35 +1200,89 @@ let renderframeui = (items) => {
 				typeof item[1] == 'string'
 			) {
 
-				let input = dom('input', {
-					value: item[1],
-					onkeydown: (e) => {
-						if (e.key == 'ArrowRight') { e.stopPropagation() }
-						if (e.key == 'ArrowLeft') { e.stopPropagation() }
-						if (e.key == 'Enter') {
-							e.stopPropagation()
-							e.preventDefault()
-							let newvalue = e.target.value
-							item[1] = newvalue
-							console.log(item[1])
-							input.value = item[1]
-							refresh_redraw_pages()
+				if (item[0] == 'src') {
+					keylabel.innerText = ''
+					let img = dom('img.smol', {src : item[1]})
+					property.appendChild(img)
+				}
+
+				else if (item[0] == 'text'){
+					let img = dom('textarea', {value : item[1], 
+						onkeydown: (e) => {
+							if (e.key == 'ArrowRight') { e.stopPropagation() }
+							if (e.key == 'ArrowLeft') { e.stopPropagation() }
+							if (e.key == 'Enter' && !e.shiftKey) {
+								e.stopPropagation()
+								e.preventDefault()
+								let newvalue = e.target.value
+								item[1] = newvalue
+								console.log(item[1])
+								e.target.value = item[1]
+								render()
+							}
+						}})
+					property.appendChild(img)
+				}
+
+				else {
+					let input = dom('input', {
+						value: item[1],
+						onkeydown: (e) => {
+							if (e.key == 'ArrowRight') { e.stopPropagation() }
+							if (e.key == 'ArrowLeft') { e.stopPropagation() }
+							if (e.key == 'Enter') {
+								e.stopPropagation()
+								e.preventDefault()
+								let newvalue = e.target.value
+								item[1] = newvalue
+								console.log(item[1])
+								input.value = item[1]
+								render()
+							}
 						}
-					}
-				})
-				property.appendChild(input)
+					})
+					property.appendChild(input)
+				}
 			}
 
 			box.appendChild(property)
 		})
 }
 
-let ui = dom('.ui')
-document.body.appendChild(ui)
+// BAR
+let updatebar = () => {
+	bar.innerHTML = ''
+	let authpopup = () => {
+		let aut = ''
+		let d = dom(
+			'.auth-popup',
+			['input', {oninput: (e) => aut = e.target.value, value: auth}],
+			['button', {onclick: (e) => {
+				auth = aut
+				localStorage.setItem('auth', auth)
+				d.remove()
+			}}, 'save'],
 
-let arena_ui = dom('.arena-ui')
-document.body.appendChild(arena_ui)
+			['button', {onclick: (e) => d.remove()}, 'close']
+		)
 
+		document.body.appendChild(d)
+	}
+
+	let d = dom('.actions',
+		['button', { onclick: nextpage }, 'next'],
+		['span', " " + book.current_spread + " "],
+		['button', { onclick: prevpage }, 'prev'],
+		['button', { onclick: toggledisplay }, display ? 'saddle view' : 'display view'],
+
+		['button', { onclick: savelocal }, 'save'],
+		['button', { onclick: sync }, 'sync'],
+		['button', { onclick: addpage }, 'add page'],
+		['button', { onclick: authpopup }, 'auth'],
+	)
+
+	bar.appendChild(d)
+}
 let updateui = () => {
 	ui.innerHTML = ''
 	if (Array.isArray(data[book.current_spread])) data[book.current_spread].forEach(renderframeui)
@@ -1112,73 +1292,67 @@ let updateui = () => {
 
 	ui.appendChild(btn)
 }
-let renderarenaui = (block) => {
-	let block_el = dom('.block', {
-		onclick: () => add_block_to_spread(block)
-	})
+
+// Arena UI
+let renderarenaui = (block, foundblocks) => {
+	let found = foundblocks.includes(block.id) ? '.found' : ''
+	let block_el = dom('.block' + found, {onclick: () => add_block_to_spread(block),})
+
 	if (block.class == "Text") block_el.appendChild(dom('div', block.content))
-	if (block.class == "Image") block_el.appendChild(dom('img', {src: block.image.display.url}))
-	if (block.class == "Link") block_el.appendChild(dom(['div', ['img', {src: block.image.display.url}], ['p', block.title]]))
+	if (block.class == "Image") block_el.appendChild(dom('img', { src: block.image.display.url }))
+	if (block.class == "Link") block_el.appendChild(dom(['div', ['img', { src: block.image.display.url }], ['p', block.title]]))
+	if (block.class == "Media") block_el.appendChild(dom(['div', ['img', { src: block.image.display.url }], ['p', block.title]]))
+	if (block.class == "Attachment") block_el.appendChild(dom(['div', ['img', { src: block.image.display.url }], ['p', block.title]]))
+
 	arena_ui.appendChild(block_el)
 }
-
 let update_arena_ui = () => {
 	arena_ui.innerHTML = ''
-	console.log(contents)
-	if (Array.isArray(contents)) contents.forEach(renderarenaui)
+	let foundblocks = findblockids()
+	console.log(foundblocks)
+	if (Array.isArray(contents)) contents.forEach(c => renderarenaui(c, foundblocks))
 }
 
+// ----------------- +x+ --
+// ++ RENDER BOOK
+// ----------------- +x+ --
 let render = () => {
-	let contents = () => frames(data[book.current_spread])
-	let spread = new Spread(grid, s, contents())
+	let spreads = data.map(frames).map(f => new Spread(grid, s, f))
 	setTimeout(() => {
-
-		book = new Book([spread, spread, spread ])
-		book.seek(2)
-		canvas.draw_book(book)
-		// book.draw_saddle_view(p)
-		// spread.draw(p)
-		// spread.draw_grid(p)
-	}, 100)
+		book = new Book(spreads)
+		book.current_spread = spread
+		// canvas.draw_saddle(book)
+		if (display) canvas.draw_book(book)
+		else canvas.draw_saddle(book)
+	}, 10)
 
 }
-
-let count = 0
-let add_block_to_spread = block => {
-	console.log(book.current_spread)
-	if (block.class == "Text")
-		data[book.current_spread].push(['TextBlock',
-				['text', block.content],
-				['id', block.id],
-				['font_family', 'sans-serif'],
-				["x", ["verso", 0, 'x']],
-				["y", ["em", count++ * 12 + 2]],
-				['height', ['em', 12]],
-				['length', ['em', 18]],
-			])
-
-	if (block.class == "Image")
-		data[book.current_spread].push(['ImageBlock',
-				['src', block.image.display.url],
-				['id', block.id],
-				["x", ["verso", 0, 'x']],
-				["y", ["em", count++ * 12 + 2]],
-				['length', ['em', 18]],
-			])
-
-	updateui()
-	render()
-}
-
-let contents
-let book = new Book([])
-console.log(book.current_spread)
 let init = (channel) => {
 	contents = channel.contents
-	data = [[], []]
+	let d = localStorage.getItem('data')
+	if (d) data = JSON.parse(d)
+	else data = [[], [], []]
 
 	updateui()
-	update_arena_ui()
+	updatebar()
 	render()
+	update_arena_ui()
 }
 
+document.onkeydown = (e) => {
+	if (e.key == 'ArrowRight') nextpage()
+	if (e.key == 'ArrowLeft') prevpage()
+}
+
+let defaulttextprops = [
+	// ["hyphenate", "boolean"],
+	// ["font_family", 'sans-serif'],
+	['font_weight', 100],
+	['leading', ['em', 1]],
+	['font_size', ['point', 8]],
+	['length', ['em', 12]],
+	['height', ['em', 12]],
+	['color', 'black'],
+	// stroke?: string,
+	// rect?: boolean,
+]

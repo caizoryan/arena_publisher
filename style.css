@@ -19,6 +19,28 @@
 	font-family: 'DepartMono';
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
+	transition: all 50ms;
+}
+
+.container {
+	display: fixed ;
+	width: 100vw;
+	height: 100vh;
+	display: flex;
+	justify-content: center;
+	/* align-items: center; */
+}
+
+.auth-popup {
+	position: fixed;
+	top: 2vh;
+	height: 20vh;
+
+	right: 5vw;
+	width: 25vw;
+	z-index: 99;
+	background: #ddd;
+	padding: 1em;
 }
 
 .ui {
@@ -34,6 +56,10 @@
 	overflow-y: scroll;
 }
 
+.ui .smol {
+	width: 80%;
+}
+
 .arena-ui {
   position: fixed;
 	top: 2vh;
@@ -44,6 +70,17 @@
 	background: #ddd;
 	padding: 1em;
 	overflow-y: scroll;
+}
+
+.bar {
+  position: fixed;
+	bottom: 1vh;
+	height: 50px;
+	left: 10vw;
+  width: 80vw;
+	z-index: 99;
+	background: #ddd;
+	padding: 1em;
 }
 
 .arena-ui:hover {
@@ -112,6 +149,11 @@ input {
 	margin: 1em;
 	padding: 1em;
 	overflow-y: scroll;
+}
+
+.block.found {
+	opacity: .5;
+	pointer-events: none;
 }
 
 .block img{
