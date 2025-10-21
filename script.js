@@ -1105,7 +1105,7 @@ document.body.appendChild(arena_ui)
 
 let updateui = () => {
 	ui.innerHTML = ''
-	if (Array.isArray(data[0])) data[0].forEach(renderframeui)
+	if (Array.isArray(data[book.current_spread])) data[book.current_spread].forEach(renderframeui)
 	let btn = document.createElement('button')
 	btn.innerText = 'save'
 	btn.onclick = () => { render() }
@@ -1113,7 +1113,6 @@ let updateui = () => {
 	ui.appendChild(btn)
 }
 let renderarenaui = (block) => {
-	console.log(block)
 	let block_el = dom('.block', {
 		onclick: () => add_block_to_spread(block)
 	})
@@ -1130,7 +1129,7 @@ let update_arena_ui = () => {
 }
 
 let render = () => {
-	let contents = () => frames(data[0])
+	let contents = () => frames(data[book.current_spread])
 	let spread = new Spread(grid, s, contents())
 	setTimeout(() => {
 
@@ -1146,8 +1145,9 @@ let render = () => {
 
 let count = 0
 let add_block_to_spread = block => {
+	console.log(book.current_spread)
 	if (block.class == "Text")
-		data[0].push(['TextBlock',
+		data[book.current_spread].push(['TextBlock',
 				['text', block.content],
 				['id', block.id],
 				['font_family', 'sans-serif'],
@@ -1158,7 +1158,7 @@ let add_block_to_spread = block => {
 			])
 
 	if (block.class == "Image")
-		data[0].push(['ImageBlock',
+		data[book.current_spread].push(['ImageBlock',
 				['src', block.image.display.url],
 				['id', block.id],
 				["x", ["verso", 0, 'x']],
@@ -1171,10 +1171,11 @@ let add_block_to_spread = block => {
 }
 
 let contents
-let book 
+let book = new Book([])
+console.log(book.current_spread)
 let init = (channel) => {
 	contents = channel.contents
-	data = [[]]
+	data = [[], []]
 
 	updateui()
 	update_arena_ui()
