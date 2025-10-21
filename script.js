@@ -266,10 +266,101 @@ class Canvas {
 		};
 
 		p.draw = () => {
-			p.background(200);
+			p.background(255)
 			p.noFill();
 			p.noLoop()
 		};
+	}
+
+	/**@param {Book} book */
+	draw_book(book) {
+		let p = this.p5
+		// p.background(200, 127);
+
+		console.log(book.structure)
+		let width = book.structure.verso.width.px + book.structure.recto.width.px
+		let height = book.structure?.verso.height
+		let left = (this.size.width.px - width) / 2
+		let top = (this.size.height.px - height.px) / 2
+
+		let graphic = p.createGraphics(width, height.px)
+		graphic.background(255)
+
+		this.draw_crop_marks(book)
+
+		let draw_verso = (graphic, spread) => {
+			let color = "white"
+			let verso_image = book.verso_image(graphic, spread, color, .5)
+			let x = left
+			let y = top
+			p.image(verso_image, x, y, verso_image.width, verso_image.height)
+			p.opacity(.8)
+		}
+
+		let draw_recto = (graphic, spread, ) => {
+			let color =  "white"
+			let width = book.structure.verso.width.px + book.structure.recto.width.px
+			let recto_image = book.recto_image(graphic, spread, color, .5)
+
+			p.image(
+				recto_image, left + width / 2, top , recto_image.width, recto_image.height)
+			p.opacity(.8)
+		}
+
+		draw_verso(graphic, book.current_spread)
+		draw_recto(graphic, book.current_spread)
+	}
+
+	/**@param {Book} book */
+	draw_crop_marks(book, page) {
+		let p = this.p5
+
+		let width = book.structure.verso.width.px + book.structure.recto.width.px
+		let height = book.structure.verso.height
+		let left = (this.size.width.px - width) / 2
+		let top = (this.size.height.px - height.px) / 2
+
+		// crop marks
+		p.line(left, 0, left, top)
+		p.line(0, top, left, top)
+
+		p.line(p.width - left, 0, p.width - left, top)
+		p.line(p.width, top, p.width - left, top)
+
+		// center
+		p.line(p.width / 2, 0, p.width / 2, top)
+		p.line(p.width / 2, p.height, p.width / 2, p.height - top)
+
+		p.line(0, p.height - top, left, p.height - top)
+		p.line(left, p.height, left, p.height - top)
+
+		p.line(p.width, p.height - top, p.width - left, p.height - top)
+		p.line(p.width - left, p.height, p.width - left, p.height - top)
+	}
+
+	/**@param {Book} book */
+	draw_saddle(book) {
+		let p = this.p5
+
+		if (this.print) {
+			p.background(255);
+		} else {
+			p.background(200);
+		}
+		let width = book.structure.verso.width.px + book.structure.recto.width.px
+		let height = book.structure.verso.height
+
+		let graphic = p.createGraphics(width, height.px)
+		graphic.background(255)
+
+		book.draw_saddle_view(graphic)
+		this.draw_crop_marks(book)
+
+		let left = (this.size.width.px - width) / 2
+		let top = (this.size.height.px - height.px) / 2
+
+		p.image(graphic, left, top, width.px, height.px)
+		return graphic
 	}
 }
 
@@ -326,7 +417,6 @@ class Spread {
 		// })
 	}
 
-
 	draw(p) {
 		this.contents.forEach(d => d.draw(p, this.props()))
 	}
@@ -340,10 +430,205 @@ class Spread {
 	}
 }
 
-class ImageFrame {
+class Book {
 	/**
-	 * @param {ParagraphProps} props 
-	 * */
+	@param {Spread[]} [spreads=[]] 
+	@param {{draw_grid: boolean}=} opts
+	*/
+	constructor(spreads = [], opts = { draw_grid: true }) {
+		this.grid = opts.draw_grid
+		this.structure = spreads[0] ? spreads[0].props().structure : undefined
+		this.current_spread = 0
+
+		/**@type Spread[]*/
+		this.spreads = spreads
+	}
+
+	before_spine(page_num) {
+		let spread = this.pages()
+		let is = undefined
+		let middle = Math.floor(spread.length / 2)
+
+		spread.forEach((e, i) => {
+			e.forEach((pg, side) => {
+				if (pg == page_num) {
+					if (i == middle) {
+						if (side == 0) is = true
+						else is = false
+					}
+					else {
+						if (i < middle) is = true
+						else is = false
+					}
+				}
+			})
+		})
+
+		return is
+	}
+
+	saddle_pages() {
+		// get pages
+		let pages = this.pages()
+
+		//let pages = [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9], [10, 11], [12, 13], [14, 15], [16, 17]]
+		if (!Array.isArray(pages)) return
+
+		let last = pages.length - 1
+		let pair = (i) => pages[last - i]
+		let pairskiplast = (i) => pages[last - i - 1]
+
+		let middle = Math.ceil(last / 2)
+
+		// switch each recto with pair spread recto till middle
+		for (let i = 0; i < middle; i++) {
+			let f_verso = pages[i][0]
+			let p_verso = pair(i)[0]
+
+			pages[i][0] = p_verso
+			pair(i)[0] = f_verso
+		}
+
+		let pairedup = []
+
+		// pair spreads up with each other
+		for (let i = 0; i < middle; i++) {
+			pairedup.push(pages[i])
+			pairedup.push(pairskiplast(i))
+		}
+
+		return pairedup
+	}
+
+	page_to_spread(num) {
+		return Math.floor(num / 2)
+	}
+
+	get_page(num = 1) {
+		let spread = this.page_to_spread(num)
+		return this.spreads[spread]
+	}
+
+	set_spread(spread) {
+		let valid = this.validate_spread(spread)
+		if (!valid) return
+		this.current_spread = spread
+	}
+
+	set_page(num) {
+		let spread = this.page_to_spread(num)
+		this.set_spread(spread)
+	}
+
+	validate_spread(spread) {
+		if (this.spreads.length <= spread
+			|| spread < 0
+		) return false
+		else return true
+	}
+
+	pages() {
+		/**@type {[number, number][]}*/
+		let arr = []
+		let is_odd = (num) => (num % 2) == 1
+
+		// also make sure number of spreads is odd
+		// TOD0: if it isn't, add a spread before last page in booklet binding... 
+		if (is_odd(this.spreads.length)) {
+			this.spreads.forEach((_, i) => {
+				let last = i == this.spreads.length - 1
+				let first = i == 0
+				let num = i * 2
+				let recto = last ? 0 : num + 1
+				let verso = num
+				arr.push([verso, recto])
+			})
+
+			return arr
+		}
+		else {
+			console.log("FUCK NOT MULTIPLE OF 4", (this.spreads.length * 2) - 2)
+		}
+	}
+
+	/**@param {Spread} spread */
+	add_spread(spread) {
+		this.spreads.push(spread)
+	}
+
+	page_image(p, number) {
+		let spread = this.page_to_spread(number)
+		if (number % 2 == 1) return this.recto_image(p, spread,)
+		else return this.verso_image(p, spread)
+	}
+
+	/**
+	@typedef {p5.Image} Image
+	*/
+	verso_image(p, number, color = "white", width = .5) {
+		let _p = p.createGraphics(p.width, p.height)
+		_p.background(color)
+		if (this.grid) this.spreads[number].draw_grid(_p, [(number * 2), (number * 2) + 1])
+		this.spreads[number].draw(_p)
+		if (number == 0) _p.background(0)
+		let img = _p.get(0, 0, _p.width * width, _p.height)
+
+		return img
+	}
+
+	recto_image(p, number, color = "white", width = .5) {
+		let from = 1 - width
+		let _p = p.createGraphics(p.width, p.height)
+		_p.background(color)
+		if (this.grid) this.spreads[number].draw_grid(_p, [(number * 2), (number * 2) + 1])
+		this.spreads[number].draw(_p)
+		if (number == this.spreads.length - 1) _p.background(200)
+		let img = _p.get(_p.width * from, 0, _p.width * width, _p.height)
+
+		return img
+	}
+
+	draw_saddle_view(p) {
+		let saddle = this.saddle_pages()
+		if (!saddle) return
+
+		let curr = saddle[this.current_spread]
+		this.draw_page_set(p, curr[0], curr[1])
+	}
+
+	/**
+	@param {Image} img  
+	*/
+	draw_img(p, img, x = 0, y = 0) {
+		p.image(img, x, y, img.width, img.height)
+	}
+
+
+	draw_page_set(p, num1, num2) {
+		if (num1) {
+			// let offset = book.offsets.filter((e) => e.page == num1)
+			// let horizontal_offset = offset.find((e) => e.axis == "horizontal")
+			// TODO: update structure
+
+			let spread_num_1 = this.page_to_spread(num1)
+			let img = this.verso_image(p, spread_num_1, "white",.5)
+			this.draw_img(p, img, 0, 0)
+		}
+
+		if (num2) {
+			let spread_num_2 = this.page_to_spread(num2)
+			let img = this.recto_image(p, spread_num_2, "white", .5)
+			let x =  0
+			this.draw_img(p, img, p.width / 2 + x, 0)
+		}
+	}
+
+	seek(page) {
+		this.set_page(page)
+	}
+}
+
+class ImageFrame {
 	constructor(props) {
 		this.props = props
 		this.image = new Image()
@@ -687,8 +972,13 @@ let page_width = s.inch(11)
 let page_height = s.inch(8.5)
 
 let canvas = new Canvas(p, s, el, { width: page_width, height: page_height })
-let grid = new Structure([{ width: s.div(page_width, 2), margin: { top: s.em(1), inside: s.em(1), outside: s.em(1), bottom: s.em(1), } }, {
-	width: s.div(page_width, 2)
+let grid = new Structure([{
+	width: s.inch(5),
+	height: s.inch(8),
+	margin: { top: s.em(1), inside: s.em(1), outside: s.em(1), bottom: s.em(1), }
+}, {
+	width: s.inch(5),
+	height: s.inch(8),
 }])
 
 
@@ -815,7 +1105,7 @@ document.body.appendChild(arena_ui)
 
 let updateui = () => {
 	ui.innerHTML = ''
-	if (Array.isArray(data)) data.forEach(renderframeui)
+	if (Array.isArray(data[0])) data[0].forEach(renderframeui)
 	let btn = document.createElement('button')
 	btn.innerText = 'save'
 	btn.onclick = () => { render() }
@@ -840,12 +1130,16 @@ let update_arena_ui = () => {
 }
 
 let render = () => {
-	p.background(200)
-	let contents = () => frames(data)
+	let contents = () => frames(data[0])
 	let spread = new Spread(grid, s, contents())
 	setTimeout(() => {
-		spread.draw(p)
-		spread.draw_grid(p)
+
+		book = new Book([spread, spread, spread ])
+		book.seek(2)
+		canvas.draw_book(book)
+		// book.draw_saddle_view(p)
+		// spread.draw(p)
+		// spread.draw_grid(p)
 	}, 100)
 
 }
@@ -853,7 +1147,7 @@ let render = () => {
 let count = 0
 let add_block_to_spread = block => {
 	if (block.class == "Text")
-		data.push(['TextBlock',
+		data[0].push(['TextBlock',
 				['text', block.content],
 				['id', block.id],
 				['font_family', 'sans-serif'],
@@ -864,7 +1158,7 @@ let add_block_to_spread = block => {
 			])
 
 	if (block.class == "Image")
-		data.push(['ImageBlock',
+		data[0].push(['ImageBlock',
 				['src', block.image.display.url],
 				['id', block.id],
 				["x", ["verso", 0, 'x']],
@@ -877,9 +1171,10 @@ let add_block_to_spread = block => {
 }
 
 let contents
+let book 
 let init = (channel) => {
 	contents = channel.contents
-	data = []
+	data = [[]]
 
 	updateui()
 	update_arena_ui()
