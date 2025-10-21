@@ -14,7 +14,7 @@ let process_recto = (prop) => (grid) => {
 	let diff = prop[1] - index
 	// TODO: Figure out column width
 	let offset = s.mul(grid.column_width_recto(1), diff)
-	return s.add(grid.recto_columns_global_pos()[index][prop[2]], offset)
+	return s.add(grid.recto_columns()[index][prop[2]], offset)
 }
 
 // TODO: Figure out column width
@@ -79,14 +79,9 @@ export let process_property = (property) => {
 	else return property
 }
 
-export let reduceprops = (props) =>{
-	let f = props.reduce((acc, tuple) => {
+export let reduceprops = (props) => props.reduce((acc, tuple) => {
 	let key = tuple[0]
 	let value = tuple[1]
 	acc[key] = process_property(value)
 	return acc
 }, {})
-
-	console.log(f)
-	return f
-}

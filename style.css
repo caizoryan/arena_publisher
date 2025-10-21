@@ -1,8 +1,120 @@
+@font-face {
+	font-family: 'Areal';
+	src: url('./fonts/areal.woff2');
+}
+
+@font-face {
+	font-family: 'hermit';
+	src: url('./fonts/Hermit-Light.otf');
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	font-family: 'DepartMono';
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
 .ui {
 	position: fixed;
-	top: 0;
-	right: 0;
+	top: 2vh;
+	height: 96vh;
+
+	right: -24vw;
 	width: 25vw;
-	height: 80vh;
+	z-index: 99;
+	background: #ddd;
+	padding: 1em;
+	overflow-y: scroll;
+}
+
+.arena-ui {
+  position: fixed;
+	top: 2vh;
+	height: 96vh;
+	left: -24vw;
+  width: 25vw;
+	z-index: 99;
+	background: #ddd;
+	padding: 1em;
+	overflow-y: scroll;
+}
+
+.arena-ui:hover {
+	left: .1vw;
+}
+
+.ui:hover {
+	right: .1vw;
+}
+
+.box {
+	border: 1px solid #555;
+	padding: .4em;
+	margin-bottom: 1em;
+}
+
+.property {
+	border: 1px solid #2222;
+	padding: .4em;
+	font-family: 'Areal';
+	font-variation-settings: "MONO" 99.3827;
+	margin: .3em;
+	width: 250px;
+}
+
+.property[activated="true"] {
 	background: yellow;
 }
+
+.key {
+	font-family: 'Areal';
+	font-variation-settings: "MONO" 99.3827;
+}
+
+.unit {
+	background: #4444;
+	font-family: 'Areal';
+	font-variation-settings: "MONO" 99.3827;
+}
+
+button {
+	all: unset;
+	border: 1px solid black;
+	padding: .1em;
+}
+
+button:hover {
+	cursor: pointer;
+	background: black;
+	color: white;
+}
+
+input {
+	all: unset;
+	border: 1px solid black;
+	padding: .1em;
+	width: 150px;
+	margin-left: .2em;
+}
+
+
+.block {
+	width: 90%;
+	max-height: 50vh;
+	border-top: 1px solid black;
+	margin: 1em;
+	padding: 1em;
+	overflow-y: scroll;
+}
+
+.block img{
+	width: 100%;
+}
+						

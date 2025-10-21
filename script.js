@@ -1,9 +1,50 @@
 import { Q5 as p5 } from "./lib/q5/q5.js"
 import { Scale } from "./scale.js"
-import { process_property, reduceprops } from "./processor.js"
+import { reduceprops } from "./processor.js"
 
+let host = 'http://localhost:3000/api/'
+// let host = 'https://api.are.na/v2/'
+let slug = 'book-making-as-meditative-practice-as-excuse-to-make-books-with-friends-as-friends-who-love-to-meditate'
+let getchannel = (slug) => fetch(host +'channels/'+ slug ).then((res) => res.json())
 let viewport = 1
-let text_block = (props) => new TextFrame(props)
+
+export let isNode = (el) => el && el.nodeName && el.nodeType
+
+/** @returns {HTMLElement} */
+export let dom = (tag, ...contents) => {
+	let el = "div"
+	let classes = []
+	let id = ""
+	if (Array.isArray(tag) && contents.length == 0) return dom(...tag.concat(contents))
+
+	let parseclass = ((str) => {
+		let identifiers = str.split(/([\.#]?[^\s#.]+)/).map(e => e.trim()).filter(e => e != "")
+
+		if (!(/^\.|#/.test(identifiers[0]))) {
+			el = identifiers[0]
+			identifiers.shift()
+		}
+
+		identifiers.forEach(i => {
+			if (i[0] == ".") classes.push(i.slice(1))
+			if (i[0] == "#") id = i.slice(1)
+		})
+	})(tag)
+
+	let doc = document.createElement(el)
+
+	classes.forEach((c) => doc.classList.add(c))
+	id ? doc.id = id : null
+
+	contents.forEach((e) => {
+		if (typeof e == 'string') doc.innerText += e
+		else if (Array.isArray(e)) doc.appendChild(dom(...e))
+		else if (isNode(e)) doc.appendChild(e)
+		else if (typeof e == 'object') Object.entries(e).map(([k, v]) => doc[k] = v)
+	})
+
+	return doc
+}
 
 /** 
 @typedef {{
@@ -296,6 +337,28 @@ class Spread {
 			scale: this.s,
 			structure: this.structure
 		}
+	}
+}
+
+class ImageFrame {
+	/**
+	 * @param {ParagraphProps} props 
+	 * */
+	constructor(props) {
+		this.props = props
+		this.image = new Image()
+		this.image.src = props.src
+	}
+
+	draw(p, prop) {
+		let x = typeof this.props.x == 'function' ? this.props.x(prop.structure) : this.props.x
+		let y = typeof this.props.y == 'function' ? this.props.y(prop.structure) : this.props.y
+		// if length/width is given use that to calculate height
+		let w = typeof this.props.length == 'function' ? this.props.length(prop.structure) : this.props.length
+		let ratio =  w.px /this.image.width 
+		let h = this.image.height * ratio
+
+		p.image(this.image, x.px,y.px, w.px, h)
 	}
 }
 
@@ -628,16 +691,14 @@ let grid = new Structure([{ width: s.div(page_width, 2), margin: { top: s.em(1),
 	width: s.div(page_width, 2)
 }])
 
-let slug = 'notes-conditions-of-visuality'
 
-fetch('https://api.are.na/v2/channels/notes-conditions-of-visuality')
-	.then(res => res.json())
+getchannel(slug)
 	.then(res => { init(res) })
 
 
 let frame = arr => {
-	if (arr[0] == "TextBlock") return text_block(reduceprops(arr.slice(1)))
-	if (arr[0] == "TextFrame") return new TextFrame(reduceprops(arr.slice(1)))
+	if (arr[0] == "TextBlock" || arr[0] == "TextFrame") return new TextFrame(reduceprops(arr.slice(1)))
+	if (arr[0] == "ImageBlock") return new ImageFrame(reduceprops(arr.slice(1)))
 }
 
 let frames = arr => arr.map(frame)
@@ -645,8 +706,6 @@ let data
 
 let renderframeui = (items) => {
 	let box = document.createElement('div')
-	// box.onclick = (e) => { current_box = items }
-	// box.onmouseleave = () => { current_box = null }
 
 	box.classList.add('box')
 	ui.appendChild(box)
@@ -654,29 +713,40 @@ let renderframeui = (items) => {
 	items.forEach(
 		(item, i) => {
 			if (i == 0) return
-			let property = document.createElement('div')
-			property.onclick = (e) => {
-				
-				if (e.metaKey) {
-					property.setAttribute('activated', 'true')
-					buffer.push(item)
+			let property = dom('.property', {
+				onclick: (e) => {
+					if (e.metaKey) {
+						property.setAttribute('activated', 'true')
+						buffer.push(item)
+					}
+				}
+			}, ['span.key', item[0] + " : "])
+
+			let onkeydown = (e) => {
+				if (e.key == 'ArrowRight' || e.key == 'ArrowLeft') { e.stopPropagation() }
+				if (e.key == 'ArrowUp') {
+					e.stopPropagation()
+					item[1][1] += increment
+					e.target.value = item[1][1]
+					render()
+				}
+				if (e.key == 'ArrowDown') {
+					e.stopPropagation()
+					item[1][1] -= increment
+					e.target.value = item[1][1]
+					render()
+				}
+				if (e.key == 'Enter') {
+					e.stopPropagation()
+					e.preventDefault()
+					let lastvalue = item[1][1]
+					let newvalue = parseFloat(e.target.value)
+					if (newvalue == NaN) newvalue = lastvalue
+					item[1][1] = newvalue
+					e.target.value = item[1][1]
+					render()
 				}
 			}
-			// property.onmouseenter = () => {
-			// 	buffer = item
-			// }
-			// property.onmouseleave = () => {
-			// 	property.setAttribute('activated', 'false')
-			// 	buffer = null
-			// }
-			property.classList.add('property')
-
-			let key = document.createElement('span')
-			key.classList.add('key')
-			key.innerText += item[0] + ' : '
-
-			property.appendChild(key)
-
 			if (Array.isArray(item[1])) {
 				let key = item[1][0]
 				if (
@@ -687,151 +757,132 @@ let renderframeui = (items) => {
 					|| key == 'column_width_verso'
 					|| key == 'hangline_recto'
 					|| key == 'column_width_recto'
-					|| key == 'recto'
-					|| key == 'verso'
 				) {
-					let unit = document.createElement('span')
-					unit.innerText = '(' + key + ')'
-					unit.classList.add('unit')
-
-					let input = document.createElement('input')
-					input.value = item[1][1]
-					input.onkeydown = (e) => {
-						if (e.key == 'ArrowRight') { e.stopPropagation() }
-						if (e.key == 'ArrowLeft') { e.stopPropagation() }
-						if (e.key == 'ArrowUp') {
-							e.stopPropagation()
-							item[1][1] += increment
-							input.value = item[1][1]
-							render()
-						}
-						if (e.key == 'ArrowDown') {
-							e.stopPropagation()
-							item[1][1] -= increment
-							input.value = item[1][1]
-							render()
-						}
-
-						if (e.key == 'Enter') {
-							e.stopPropagation()
-							e.preventDefault()
-							let lastvalue = item[1][1]
-							let newvalue = parseFloat(e.target.value)
-							if (newvalue == NaN) newvalue = lastvalue
-							item[1][1] = newvalue
-							input.value = item[1][1]
-							render()
-						}
-					}
-
+					let unit = dom('span.unit', '(' + key + ')')
+					let input = dom('input', { value: item[1][1], onkeydown: onkeydown, })
 					property.appendChild(input)
 					property.appendChild(unit)
 				}
 
-
-				else if (key == 'css') {
-					let css_box = document.createElement('div')
-					if (Array.isArray(item[1][1])) item[1][1].forEach((el) => {
-						let p = document.createElement('p')
-						let key = document.createElement('span')
-						let input = document.createElement('input')
-						key.innerText = el[0]
-						input.value = el[1]
-
-						input.onkeydown = (e) => {
-							if (e.key == 'ArrowRight') { e.stopPropagation() }
-							if (e.key == 'ArrowLeft') { e.stopPropagation() }
-							if (e.key == 'Enter') {
-								e.stopPropagation()
-								e.preventDefault()
-								let value = e.target.value
-								el[1] = value
-								render()
-							}
+				if (key == "recto" || key == 'verso') {
+					let unit = dom('span.unit', {
+						onclick: (e) => {
+							item[1][0] = key == 'recto' ? 'verso' : 'recto'
+							key = item[1][0]
+							e.target.innerText = item[1][0]
+							render()
 						}
-
-						p.appendChild(key)
-						p.appendChild(input)
-						css_box.appendChild(p)
-					})
-
-					property.appendChild(css_box)
+					}, '(' + key + ')')
+					let input = dom('input', { value: item[1][1], onkeydown: onkeydown, })
+					property.appendChild(input)
+					property.appendChild(unit)
 				}
 
 			}
 			else if (
-				typeof item[1] == 'number'||
+				typeof item[1] == 'number' ||
 				typeof item[1] == 'string'
 			) {
 
-				let input = document.createElement('input')
-				input.value = item[1]
-				input.onkeydown = (e) => {
-					if (e.key == 'ArrowRight') { e.stopPropagation() }
-					if (e.key == 'ArrowLeft') { e.stopPropagation() }
-					if (e.key == 'Enter') {
-						e.stopPropagation()
-						e.preventDefault()
-						let newvalue = e.target.value
-						item[1] = newvalue
-						console.log(item[1])
-						input.value = item[1]
-						refresh_redraw_pages()
+				let input = dom('input', {
+					value: item[1],
+					onkeydown: (e) => {
+						if (e.key == 'ArrowRight') { e.stopPropagation() }
+						if (e.key == 'ArrowLeft') { e.stopPropagation() }
+						if (e.key == 'Enter') {
+							e.stopPropagation()
+							e.preventDefault()
+							let newvalue = e.target.value
+							item[1] = newvalue
+							console.log(item[1])
+							input.value = item[1]
+							refresh_redraw_pages()
+						}
 					}
-				}
-
+				})
 				property.appendChild(input)
-
 			}
 
 			box.appendChild(property)
 		})
 }
 
-let ui = document.createElement('div')
-ui.classList.add('ui')
+let ui = dom('.ui')
 document.body.appendChild(ui)
+
+let arena_ui = dom('.arena-ui')
+document.body.appendChild(arena_ui)
 
 let updateui = () => {
 	ui.innerHTML = ''
 	if (Array.isArray(data)) data.forEach(renderframeui)
 	let btn = document.createElement('button')
 	btn.innerText = 'save'
-	btn.onclick = () => {render()}
-	// save()
+	btn.onclick = () => { render() }
 
 	ui.appendChild(btn)
+}
+let renderarenaui = (block) => {
+	console.log(block)
+	let block_el = dom('.block', {
+		onclick: () => add_block_to_spread(block)
+	})
+	if (block.class == "Text") block_el.appendChild(dom('div', block.content))
+	if (block.class == "Image") block_el.appendChild(dom('img', {src: block.image.display.url}))
+	if (block.class == "Link") block_el.appendChild(dom(['div', ['img', {src: block.image.display.url}], ['p', block.title]]))
+	arena_ui.appendChild(block_el)
+}
+
+let update_arena_ui = () => {
+	arena_ui.innerHTML = ''
+	console.log(contents)
+	if (Array.isArray(contents)) contents.forEach(renderarenaui)
 }
 
 let render = () => {
 	p.background(200)
-	let contents = () => frames([
-			['TextFrame',
-				["text", "Hello world"],
-				["x", ["verso", 2, "x"]],
-				["y", ["em", 4]]],
-			...data
-		])
-
+	let contents = () => frames(data)
 	let spread = new Spread(grid, s, contents())
-	spread.draw(p)
-	spread.draw_grid(p)
+	setTimeout(() => {
+		spread.draw(p)
+		spread.draw_grid(p)
+	}, 100)
+
 }
 
-let init = (channel) => {
-	data = channel.contents
-		.slice(0, 4)
-		.map((b, i) =>
-			['TextBlock',
-				['text', b.content],
+let count = 0
+let add_block_to_spread = block => {
+	if (block.class == "Text")
+		data.push(['TextBlock',
+				['text', block.content],
+				['id', block.id],
 				['font_family', 'sans-serif'],
 				["x", ["verso", 0, 'x']],
-				["y", ["em", i * 12 + 2]],
+				["y", ["em", count++ * 12 + 2]],
 				['height', ['em', 12]],
 				['length', ['em', 18]],
 			])
 
-	render()
+	if (block.class == "Image")
+		data.push(['ImageBlock',
+				['src', block.image.display.url],
+				['id', block.id],
+				["x", ["verso", 0, 'x']],
+				["y", ["em", count++ * 12 + 2]],
+				['length', ['em', 18]],
+			])
+
 	updateui()
+	render()
+}
+
+let contents
+let init = (channel) => {
+	contents = channel.contents
+	data = []
+
+	updateui()
+	update_arena_ui()
+	render()
 }
 
