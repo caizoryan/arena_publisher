@@ -1513,12 +1513,12 @@ let render = () => {
 		// canvas.draw_saddle(book)
 		if (display) canvas.draw_book(book)
 		else canvas.draw_saddle(book)
+		updatebar()
 	}, 10)
 
 }
 let init = (channel) => {
 	contents = channel.contents
-
 	updateui()
 	updatebar()
 	render()
