@@ -1,14 +1,14 @@
 import { Q5 as p5 } from "./lib/q5/q5.js"
 import { Scale } from "./scale.js"
 import { reduceprops } from "./processor.js"
-import {dom} from './dom.js'
+import { dom } from './dom.js'
 
 let viewport = window.innerWidth > 1600 ? 1 : .45
 let spread = 0
 
 // let host = 'http://localhost:3000/api/'
 let a = localStorage.getItem('auth')
-let auth =  a ? a : ''
+let auth = a ? a : ''
 let host = 'https://api.are.na/v2/'
 let slug = 'book-making-as-meditative-practice-as-excuse-to-make-books-with-friends-as-friends-who-love-to-meditate'
 
@@ -36,14 +36,21 @@ const add_block = (slug, content, title,) => {
 			else return data
 		});
 };
-const getchannel = (slug) => fetch(host + 'channels/' + slug, {
-		headers: {
-			Authorization: `Bearer ${auth}`,
-			cache: "no-store",
-			"Cache-Control": "max-age=0, no-cache",
-			referrerPolicy: "no-referrer",
-		},
-	}).then((res) => res.json())
+const getchannel =
+	(slug) =>
+		fetch(host
+			+ 'channels/'
+			+ slug
+			+ '?per=100',
+			{
+				headers: {
+					Authorization: `Bearer ${auth}`,
+					cache: "no-store",
+					"Cache-Control": "max-age=0, no-cache",
+					referrerPolicy: "no-referrer",
+				},
+			})
+			.then((res) => res.json())
 
 
 // ----------------- +x+ --
@@ -649,7 +656,9 @@ class ImageFrame {
 		let ratio = w.px / this.image.width
 		let h = this.image.height * ratio
 
+		if (this.props.opacity != undefined) p.opacity(this.props.opacity)
 		p.image(this.image, x.px, y.px, w.px, h)
+		p.opacity(1)
 	}
 }
 
@@ -964,7 +973,7 @@ function draw_paragraph(p, paragraph, grid) {
 }
 
 let display = true
-let increment =.5 
+let increment = .5
 let count = 0
 let el = document.querySelector(".q5")
 let p = new p5('instance', el);
@@ -1087,8 +1096,9 @@ getchannel(slug)
 
 getchannel('bookmaking-data')
 	.then(res => {
+		console.log('HELLOW?', res)
 		let latest_block = res.contents.sort((a, b) => a.position - b.position).pop()
-		data = JSON.parse(latest_block.content)
+		parseintodata(latest_block.content)
 
 		console.log(data)
 		render()
@@ -1102,7 +1112,22 @@ getchannel('bookmaking-data')
 let ui = dom('.ui')
 document.body.appendChild(ui)
 
-let arena_ui = dom('.arena-ui')
+let arena_ui_container = dom('.container')
+let btn = dom('button.top-right', {
+	onclick: () => {
+		let is = arena_ui.getAttribute('closed')
+		if (is == 'true') {
+			arena_ui.setAttribute('closed', 'false')
+			btn.innerText = '<<'
+		}
+
+		else {
+			arena_ui.setAttribute('closed', 'true')
+			btn.innerText = '>>'
+		}
+	}
+}, '<<')
+let arena_ui = dom('.arena-ui', btn, arena_ui_container)
 document.body.appendChild(arena_ui)
 
 let bar = dom('.bar')
@@ -1119,15 +1144,43 @@ let frame = arr => {
 }
 let frames = arr => arr.map(frame)
 let renderframeui = (items) => {
-	let box = document.createElement('div')
+	let collapse = dom(['button', {
+		onclick: () => {
+			if (box.getAttribute('collapsed') == 'true') {
+				box.setAttribute('collapsed', 'false')
+				collapse.innerText = 'v'
+			}
+			else {
+				box.setAttribute('collapsed', 'true')
+				collapse.innerText = '^'
+			}
+		}
+	}, 'v'])
 
-	box.classList.add('box')
+	let dimensions = dom('.dimensions')
+	let propopup = (arr) => {
+		console.log(arr)
+		let p = ['opacity']
+		let d = dom(['.popup',
+			['button', { onclick: () => d.remove() }, 'x'],
+			['button', {
+				onclick: () => {
+					arr.push(['opacity', .8]);
+					console.log(arr)
+					updateui()
+					render();
+				}
+			}, 'opacity']])
+
+		document.body.appendChild(d)
+	}
+	let addprop = dom(['button', { onclick: () => { propopup(items) } }, '+'])
+	let box = dom('.box', collapse, addprop, dimensions)
 	ui.appendChild(box)
 
 	items.slice(1).forEach(
 		(item, i) => {
-			console.log(item)
-			let keylabel = dom(['span.key', item[0] + " : "])
+			let keylabel = dom(['div.key', item[0]])
 			let property = dom('.property', {
 				onclick: (e) => {
 					if (e.metaKey) {
@@ -1163,7 +1216,42 @@ let renderframeui = (items) => {
 				}
 			}
 
-			if (Array.isArray(item[1])) {
+			if (item[0] == 'x' || item[0] == 'y') {
+
+				let key = item[1][0]
+				if (
+					key == 'em'
+					|| key == 'point'
+					|| key == 'inch'
+					|| key == 'hangline_verso'
+					|| key == 'column_width_verso'
+					|| key == 'hangline_recto'
+					|| key == 'column_width_recto'
+				) {
+					let unit = dom('span.unit', '(' + key + ')')
+					let input = dom('input', { value: item[1][1], onkeydown: onkeydown, })
+					property.appendChild(input)
+					property.appendChild(unit)
+				}
+
+				if (key == "recto" || key == 'verso') {
+					let unit = dom('span.unit', {
+						onclick: (e) => {
+							item[1][0] = key == 'recto' ? 'verso' : 'recto'
+							key = item[1][0]
+							e.target.innerText = item[1][0]
+							render()
+						}
+					}, '(' + key + ')')
+					let input = dom('input', { value: item[1][1], onkeydown: onkeydown, })
+					property.appendChild(input)
+					property.appendChild(unit)
+				}
+
+				dimensions.appendChild(property)
+				return
+			}
+			else if (Array.isArray(item[1])) {
 				let key = item[1][0]
 				if (
 					key == 'em'
@@ -1200,14 +1288,22 @@ let renderframeui = (items) => {
 				typeof item[1] == 'string'
 			) {
 
+				// Image src
 				if (item[0] == 'src') {
 					keylabel.innerText = ''
-					let img = dom('img.smol', {src : item[1]})
+					let img = dom('img.smol', { src: item[1] })
 					property.appendChild(img)
 				}
 
-				else if (item[0] == 'text'){
-					let img = dom('textarea', {value : item[1], 
+				// block id
+				else if (item[0] == 'id') {
+					property.appendChild(dom('span', item[1] + ''))
+				}
+
+				// text item
+				else if (item[0] == 'text') {
+					let img = dom('textarea', {
+						value: item[1],
 						onkeydown: (e) => {
 							if (e.key == 'ArrowRight') { e.stopPropagation() }
 							if (e.key == 'ArrowLeft') { e.stopPropagation() }
@@ -1216,11 +1312,11 @@ let renderframeui = (items) => {
 								e.preventDefault()
 								let newvalue = e.target.value
 								item[1] = newvalue
-								console.log(item[1])
 								e.target.value = item[1]
 								render()
 							}
-						}})
+						}
+					})
 					property.appendChild(img)
 				}
 
@@ -1256,23 +1352,25 @@ let updatebar = () => {
 		let aut = ''
 		let d = dom(
 			'.auth-popup',
-			['input', {oninput: (e) => aut = e.target.value, value: auth}],
-			['button', {onclick: (e) => {
-				auth = aut
-				localStorage.setItem('auth', auth)
-				d.remove()
-			}}, 'save'],
+			['input', { oninput: (e) => aut = e.target.value, value: auth }],
+			['button', {
+				onclick: (e) => {
+					auth = aut
+					localStorage.setItem('auth', auth)
+					d.remove()
+				}
+			}, 'save'],
 
-			['button', {onclick: (e) => d.remove()}, 'close']
+			['button', { onclick: (e) => d.remove() }, 'close']
 		)
 
 		document.body.appendChild(d)
 	}
 
 	let d = dom('.actions',
-		['button', { onclick: nextpage }, 'next'],
-		['span', " " + book.current_spread + " "],
 		['button', { onclick: prevpage }, 'prev'],
+		['span', " " + book.current_spread + " "],
+		['button', { onclick: nextpage }, 'next'],
 		['button', { onclick: toggledisplay }, display ? 'saddle view' : 'display view'],
 
 		['button', { onclick: savelocal }, 'save'],
@@ -1284,19 +1382,29 @@ let updatebar = () => {
 	bar.appendChild(d)
 }
 let updateui = () => {
-	ui.innerHTML = ''
-	if (Array.isArray(data[book.current_spread])) data[book.current_spread].forEach(renderframeui)
-	let btn = document.createElement('button')
-	btn.innerText = 'save'
-	btn.onclick = () => { render() }
+	let btn = dom('button', {
+		onclick: () => {
+			let is = ui.getAttribute('closed')
+			if (is == 'true') {
+				ui.setAttribute('closed', 'false')
+				btn.innerText = '>>'
+			}
+			else {
+				ui.setAttribute('closed', 'true')
+				btn.innerText = '<<'
+			}
+		}
+	}, '>>')
 
+	ui.innerHTML = ''
 	ui.appendChild(btn)
+	if (Array.isArray(data[book.current_spread])) data[book.current_spread].forEach(renderframeui)
 }
 
 // Arena UI
 let renderarenaui = (block, foundblocks) => {
 	let found = foundblocks.includes(block.id) ? '.found' : ''
-	let block_el = dom('.block' + found, {onclick: () => add_block_to_spread(block),})
+	let block_el = dom('.block' + found, { onclick: () => add_block_to_spread(block), })
 
 	if (block.class == "Text") block_el.appendChild(dom('div', block.content))
 	if (block.class == "Image") block_el.appendChild(dom('img', { src: block.image.display.url }))
@@ -1304,13 +1412,34 @@ let renderarenaui = (block, foundblocks) => {
 	if (block.class == "Media") block_el.appendChild(dom(['div', ['img', { src: block.image.display.url }], ['p', block.title]]))
 	if (block.class == "Attachment") block_el.appendChild(dom(['div', ['img', { src: block.image.display.url }], ['p', block.title]]))
 
-	arena_ui.appendChild(block_el)
+	arena_ui_container.appendChild(block_el)
 }
 let update_arena_ui = () => {
-	arena_ui.innerHTML = ''
+	arena_ui_container.innerHTML = ''
+
+
 	let foundblocks = findblockids()
 	console.log(foundblocks)
 	if (Array.isArray(contents)) contents.forEach(c => renderarenaui(c, foundblocks))
+}
+
+let parseintodata = (str) => {
+	let tempdata = JSON.parse(str)
+	let logg = tempdata.map(r => r.reduce((acc, item) => {
+		acc.push([
+			item[0],
+			...Object.entries(
+				item.slice(1)
+					.reduce((group, prop) => {
+						group[prop[0]] = prop[1]
+						return group
+					}, {}))
+		])
+		return acc
+	}, []))
+
+	console.log(logg, tempdata)
+	data = logg
 }
 
 // ----------------- +x+ --
@@ -1330,7 +1459,7 @@ let render = () => {
 let init = (channel) => {
 	contents = channel.contents
 	let d = localStorage.getItem('data')
-	if (d) data = JSON.parse(d)
+	if (d) parseintodata(d)
 	else data = [[], [], []]
 
 	updateui()
