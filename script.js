@@ -1105,7 +1105,6 @@ getchannel('bookmaking-data')
 	})
 
 
-
 // ----------------- +x+ --
 // ++ UI PREP
 // ----------------- +x+ --
@@ -1441,6 +1440,9 @@ let parseintodata = (str) => {
 	console.log(logg, tempdata)
 	data = logg
 }
+let d = localStorage.getItem('data')
+if (d) parseintodata(d)
+else data = [[], [], []]
 
 // ----------------- +x+ --
 // ++ RENDER BOOK
@@ -1458,9 +1460,6 @@ let render = () => {
 }
 let init = (channel) => {
 	contents = channel.contents
-	let d = localStorage.getItem('data')
-	if (d) parseintodata(d)
-	else data = [[], [], []]
 
 	updateui()
 	updatebar()
