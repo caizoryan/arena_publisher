@@ -1009,8 +1009,8 @@ let addsheet = () => {
 	data.push([])
 	notificationpopup('Added another sheet')
 	book.set_spread(book.spreads.length-1)
-	render()
 	updateui()
+	render()
 }
 
 let nextpage = () => {
@@ -1135,8 +1135,9 @@ let btn = dom('button.top-right', {
 			btn.innerText = 'show'
 		}
 	}
-}, 'hide')
+}, 'show are.na')
 let arena_ui = dom('.arena-ui', btn, arena_ui_container)
+arena_ui.setAttribute('closed', 'true')
 document.body.appendChild(arena_ui)
 
 let bar = dom('.bar')
@@ -1479,7 +1480,6 @@ let update_arena_ui = () => {
 	console.log(foundblocks)
 	if (Array.isArray(contents)) contents.forEach(c => renderarenaui(c, foundblocks))
 }
-
 let parseintodata = (str) => {
 	let tempdata = JSON.parse(str)
 	let logg = tempdata.map(r => r.reduce((acc, item) => {
@@ -1507,6 +1507,7 @@ else data = [[], [], []]
 // ----------------- +x+ --
 let render = () => {
 	let spreads = data.map(frames).map(f => new Spread(grid, s, f))
+	spread = book.current_spread
 	setTimeout(() => {
 		book = new Book(spreads)
 		book.current_spread = spread
