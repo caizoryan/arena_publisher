@@ -276,7 +276,7 @@ class Canvas {
 		};
 
 		p.draw = () => {
-			p.background(200)
+			p.background('#eee')
 			p.noFill();
 			p.noLoop()
 		};
@@ -304,7 +304,7 @@ class Canvas {
 			let x = left
 			let y = top
 			p.image(verso_image, x, y, verso_image.width, verso_image.height)
-			p.opacity(.9)
+			p.opacity(.95)
 		}
 
 		let draw_recto = (graphic, spread,) => {
@@ -314,7 +314,7 @@ class Canvas {
 
 			p.image(
 				recto_image, left + width / 2, top, recto_image.width, recto_image.height)
-			p.opacity(.9)
+			p.opacity(.95)
 		}
 
 		draw_verso(graphic, book.current_spread)
@@ -355,7 +355,7 @@ class Canvas {
 		if (this.print) {
 			p.background(255);
 		} else {
-			p.background(200);
+			p.background('#eee');
 		}
 		let width = book.structure.verso.width.px + book.structure.recto.width.px
 		let height = book.structure.verso.height
@@ -580,7 +580,7 @@ class Book {
 		_p.background(color)
 		if (this.grid) this.spreads[number].draw_grid(_p, [(number * 2), (number * 2) + 1])
 		this.spreads[number].draw(_p)
-		if (number == 0) { _p.background(200) }
+		if (number == 0) { _p.background('#eee') }
 		let img = _p.get(0, 0, _p.width * width, _p.height)
 
 		return img
@@ -592,7 +592,7 @@ class Book {
 		_p.background(color)
 		if (this.grid) this.spreads[number].draw_grid(_p, [(number * 2), (number * 2) + 1])
 		this.spreads[number].draw(_p)
-		if (number == this.spreads.length - 1) _p.background(200)
+		if (number == this.spreads.length - 1) { _p.background('#eee') }
 		let img = _p.get(_p.width * from, 0, _p.width * width, _p.height)
 
 		return img
@@ -1357,6 +1357,9 @@ let updatebar = () => {
 					auth = aut
 					localStorage.setItem('auth', auth)
 					d.remove()
+					setTimeout(() => {
+						location.reload()
+					}, 500)
 				}
 			}, 'save'],
 
