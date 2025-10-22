@@ -149,7 +149,7 @@ button:hover {
 
 .box {
 	padding: .4em;
-	margin-bottom: 2em;
+	margin: 1em 0;
 	color: var(--green-three);
 	background: var(--green-one);
 }
@@ -163,12 +163,15 @@ button:hover {
 }
 
 .property {
-	border-top: 1px solid #2222;
-	padding: .4em;
-	font-family: 'Areal';
-	font-variation-settings: "MONO" 99.3827;
-	margin: .3em;
-	/* width: 250px; */
+border-top: 2px dotted #00f2;
+  padding: .4em 0;
+  font-family: 'Areal';
+  font-variation-settings: "MONO" 99.3827;
+  margin: .3em;
+  display: grid;
+  grid-template-columns: 40% 60%;
+  grid-column-gap: .6em;
+  margin-bottom: 1em;
 }
 
 
@@ -181,8 +184,7 @@ display: inline-block;
   font-family: 'Areal';
   font-variation-settings: "MONO" 99.3827;
   min-width: 50px;
-  background: yellow;
-  border-radius: 50px;
+	border-top: 5px solid yellow;
 }
 
 .unit {
@@ -240,5 +242,13 @@ textarea {
 
 .block img{
 	width: 100%;
+}
+
+.notification {
+	z-index: 129;
+	width: 25vw;
+	background: var(--green-one);
+	padding: 1em;
+	min-height: 4em;
 }
 						

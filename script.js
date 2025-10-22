@@ -17,8 +17,7 @@ let slug = 'book-making-as-meditative-practice-as-excuse-to-make-books-with-frie
 // Are.na Functions
 // ----------------- +x+ --
 const add_block = (slug, content, title,) => {
-	console.log("adding", title, "to", slug)
-	fetch(host + "channels/" + slug + "/blocks", {
+	return fetch(host + "channels/" + slug + "/blocks", {
 		headers: {
 			"Content-Type": "application/json",
 			Authorization: "Bearer " + auth,
@@ -32,8 +31,9 @@ const add_block = (slug, content, title,) => {
 		.then((data) => {
 			let block_id = data.id;
 			// TODO: better way to do this
-			if (title !== "" || title != undefined) return update_block(block_id, { title: title }, slug);
-			else return data
+			// if (title !== "" || title != undefined) return update_block(block_id, { title: title }, slug);
+			// else
+				return data
 		});
 };
 const getchannel =
@@ -1004,9 +1004,13 @@ let contents
 // ----------------- +x+ --
 // ++ Utility functions
 // ----------------- +x+ --
-let addpage = () => {
+let addsheet = () => {
 	data.push([])
 	data.push([])
+	notificationpopup('Added another sheet')
+	book.set_spread(book.spreads.length-1)
+	render()
+	updateui()
 }
 
 let nextpage = () => {
@@ -1036,6 +1040,10 @@ let toggledisplay = () => {
 let savelocal = () => { localStorage.setItem('data', JSON.stringify(data)) }
 let sync = () => {
 	add_block('bookmaking-data', JSON.stringify(data, null, 2))
+		.then((res) => {
+			console.log(res)
+			notificationpopup('synced with are.na')
+		})
 }
 
 let findblockids = () => {
@@ -1092,11 +1100,13 @@ let add_block_to_spread = block => {
 // ++ Init functions
 // ----------------- +x+ --
 getchannel(slug)
-	.then(res => { init(res) })
+	.then(res => {
+		notificationpopup('got blocks from ' + slug.slice(0, 20) + '...')
+		init(res) })
 
 getchannel('bookmaking-data')
 	.then(res => {
-		console.log('HELLOW?', res)
+		notificationpopup('got datafiles from ' + 'bookmaking-data')
 		let latest_block = res.contents.sort((a, b) => a.position - b.position).pop()
 		parseintodata(latest_block.content)
 
@@ -1142,19 +1152,42 @@ let frame = arr => {
 	if (arr[0] == "ImageBlock") return new ImageFrame(reduceprops(arr.slice(1)))
 }
 let frames = arr => arr.map(frame)
-let renderframeui = (items) => {
+let renderframeui = (items, i) => {
 	let collapse = dom(['button', {
 		onclick: () => {
 			if (box.getAttribute('collapsed') == 'true') {
 				box.setAttribute('collapsed', 'false')
-				collapse.innerText = 'v'
+				collapse.innerText = 'collapse'
 			}
 			else {
 				box.setAttribute('collapsed', 'true')
-				collapse.innerText = '^'
+				collapse.innerText = 'open'
+			}
+		}
+	}, 'collapse'])
+
+	let layerdown = dom(['button', {
+		onclick: () => {
+			if (i != data[book.current_spread].length -1){
+				let copy = data[book.current_spread][i]
+				data[book.current_spread][i] = data[book.current_spread][i+1]
+				data[book.current_spread][i+1] = copy
+				render()
+				updateui()
 			}
 		}
 	}, 'v'])
+	let layerup = dom(['button', {
+		onclick: () => {
+			if (i != 0){
+				let copy = data[book.current_spread][i]
+				data[book.current_spread][i] = data[book.current_spread][i-1]
+				data[book.current_spread][i-1] = copy
+				render()
+				updateui()
+			}
+		}
+	}, '^'])
 
 	let dimensions = dom('.dimensions')
 	let propopup = (arr) => {
@@ -1174,7 +1207,7 @@ let renderframeui = (items) => {
 		document.body.appendChild(d)
 	}
 	let addprop = dom(['button', { onclick: () => { propopup(items) } }, '+'])
-	let box = dom('.box', collapse, addprop, dimensions)
+	let box = dom('.box', collapse, addprop, layerdown,layerup, dimensions)
 	ui.appendChild(box)
 
 	items.slice(1).forEach(
@@ -1227,10 +1260,11 @@ let renderframeui = (items) => {
 					|| key == 'hangline_recto'
 					|| key == 'column_width_recto'
 				) {
-					let unit = dom('span.unit', '(' + key + ')')
+					// let unit = dom('span.unit', '(' + key + ')')
+					keylabel.innerText += ' (' + key + ')'
 					let input = dom('input', { value: item[1][1], onkeydown: onkeydown, })
 					property.appendChild(input)
-					property.appendChild(unit)
+					// property.appendChild(unit)
 				}
 
 				if (key == "recto" || key == 'verso') {
@@ -1344,6 +1378,28 @@ let renderframeui = (items) => {
 		})
 }
 
+let notificationpopup = (msg) => {
+	let d = dom('.notification', {style: `
+		position: fixed;
+		right: -50vw;
+		opactiy: 0;
+		bottom: 1em;
+		transition: 200ms;
+	`}, msg)
+
+	document.querySelectorAll('.notification')
+		.forEach((e) => {
+			let b = parseFloat(e.style.bottom)
+			e.style.bottom = (b + 5) + 'em'
+		})
+
+	document.body.appendChild(d)
+
+	setTimeout(() => {d.style.right = '1em';d.style.opacity= 1}, 5)
+	setTimeout(() => {d.style.opacity = 0}, 5000)
+	setTimeout(() => {d.remove()}, 3500)
+}
+
 // BAR
 let updatebar = () => {
 	bar.innerHTML = ''
@@ -1371,13 +1427,13 @@ let updatebar = () => {
 
 	let d = dom('.actions',
 		['button', { onclick: prevpage }, 'prev'],
-		['span', " " + book.current_spread + " "],
+							['span', " " + book.current_spread + " / " + (book.spreads.length - 1)],
 		['button', { onclick: nextpage }, 'next'],
 		['button', { onclick: toggledisplay }, display ? 'saddle view' : 'display view'],
 
 		['button', { onclick: savelocal }, 'save'],
 		['button', { onclick: sync }, 'sync'],
-		['button', { onclick: addpage }, 'add page'],
+		['button', { onclick: addsheet }, 'add sheet'],
 		['button', { onclick: authpopup }, 'auth'],
 	)
 
