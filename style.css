@@ -31,8 +31,10 @@
 }
 
 .main.container{
-  display: flex;
-  justify-content: center;
+	display: flex;
+  /* justify-content: center; */
+  /* align-items: center; */
+  padding-left: 3em;
   /* align-items: center; */
 }
 
@@ -82,16 +84,15 @@ button:hover {
 
 .ui {
 	position: fixed;
-	top: 2vh;
-	height: 90vh;
-	/* box-shadow: 0 0 12px 10px #2222; */
-	right: .2vw;
-	width: 25vw;
-	z-index: 99;
-	background: #fffd;
-	/* background: var(--green-one); */
-	padding: 1em;
-	overflow-y: scroll;
+  top: 2vh;
+  height: 90vh;
+  box-shadow: 0 0 45px 1px #ff09;
+  right: .2vw;
+  width: 25vw;
+  z-index: 99;
+  background: #b4e6a6a1;
+  padding: 1em;
+  overflow-y: scroll;
 }
 
 .ui[closed='true']{
@@ -114,10 +115,11 @@ button:hover {
 
 .arena-ui {
   position: fixed;
-	top: 2vh;
+	bottom: 2vh;
 	height: 90vh;
-	left: 2vw;
+	right: 2vw;
   width: 25vw;
+	transition: 300ms all;
 	z-index: 99;
 	background: #fffd;
 	padding: 1em;
@@ -125,12 +127,12 @@ button:hover {
 }
 
 .arena-ui[closed='true']{
-	left: -22vw
+	bottom: -80vh
 }
 
-.arena-ui[closed='true']:hover{
-	left: 0vw
-}
+/* .arena-ui[closed='true']:hover{ */
+/* 	bottom: 0vw */
+/* } */
 
 
 .bar {
@@ -250,5 +252,6 @@ textarea {
 	background: var(--green-one);
 	padding: 1em;
 	min-height: 4em;
+	border: 2px solid var(--green-three);
 }
 						

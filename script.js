@@ -1127,15 +1127,15 @@ let btn = dom('button.top-right', {
 		let is = arena_ui.getAttribute('closed')
 		if (is == 'true') {
 			arena_ui.setAttribute('closed', 'false')
-			btn.innerText = '<<'
+			btn.innerText = 'hide'
 		}
 
 		else {
 			arena_ui.setAttribute('closed', 'true')
-			btn.innerText = '>>'
+			btn.innerText = 'show'
 		}
 	}
-}, '<<')
+}, 'hide')
 let arena_ui = dom('.arena-ui', btn, arena_ui_container)
 document.body.appendChild(arena_ui)
 
@@ -1445,14 +1445,14 @@ let updateui = () => {
 			let is = ui.getAttribute('closed')
 			if (is == 'true') {
 				ui.setAttribute('closed', 'false')
-				btn.innerText = '>>'
+				btn.innerText = 'unpin'
 			}
 			else {
 				ui.setAttribute('closed', 'true')
-				btn.innerText = '<<'
+				btn.innerText = 'pin'
 			}
 		}
-	}, '>>')
+	}, 'unpin')
 
 	ui.innerHTML = ''
 	ui.appendChild(btn)
@@ -1474,7 +1474,6 @@ let renderarenaui = (block, foundblocks) => {
 }
 let update_arena_ui = () => {
 	arena_ui_container.innerHTML = ''
-
 
 	let foundblocks = findblockids()
 	console.log(foundblocks)
