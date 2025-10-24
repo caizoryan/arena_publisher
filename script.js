@@ -6,11 +6,12 @@ import { dom } from './dom.js'
 let viewport = window.innerWidth > 1600 ? 1 : .45
 let spread = 0
 
-// let host = 'http://localhost:3000/api/'
+let host = 'http://localhost:3000/api/'
 let a = localStorage.getItem('auth')
 let auth = a ? a : ''
-let host = 'https://api.are.na/v2/'
-let slug = 'book-making-as-meditative-practice-as-excuse-to-make-books-with-friends-as-friends-who-love-to-meditate'
+// let host = 'https://api.are.na/v2/'
+let slug = 'p-presentation-0jxekaemhom'
+let dataslug = 'presentation-data'
 
 
 // ----------------- +x+ --
@@ -41,7 +42,7 @@ const getchannel =
 		fetch(host
 			+ 'channels/'
 			+ slug
-			+ '?per=100',
+			+ '?per=100&force=true',
 			{
 				headers: {
 					Authorization: `Bearer ${auth}`,
@@ -410,8 +411,8 @@ class Spread {
 		// 	this.structure.recto_columns()[3].y.px)
 
 		p.noFill()
-		p.stroke(200, 0, 250)
-		p.strokeWeight(.2)
+		p.stroke(0, 0, 250)
+		p.strokeWeight(.5)
 
 		recto.forEach((col) => { p.rect(col.x.px, col.y.px, col.w.px, col.h.px) })
 		verso.forEach((col) => { p.rect(col.x.px, col.y.px, col.w.px, col.h.px) })
@@ -657,7 +658,23 @@ class ImageFrame {
 		let h = this.image.height * ratio
 
 		if (this.props.opacity != undefined) p.opacity(this.props.opacity)
-		p.image(this.image, x.px, y.px, w.px, h)
+
+		let pop = false
+		if (this.props.rotation != undefined) {
+			p.push()
+			pop = true
+			p.translate(x.px, y.px)
+			p.angleMode(p.DEGREES)
+			p.rotate(this.props.rotation)
+		}
+
+		if (pop) {
+			p.image(this.image,0,0, w.px, h)
+		 p.pop()
+		}
+		else {
+			p.image(this.image, x.px, y.px, w.px, h)
+		}
 		p.opacity(1)
 	}
 }
@@ -1036,12 +1053,15 @@ let toggledisplay = () => {
 	render()
 	updatebar()
 }
+let togglegrid = () => {
+	book.grid = !book.grid
+	render()
+}
 
 let savelocal = () => { localStorage.setItem('data', JSON.stringify(data)) }
 let sync = () => {
-	add_block('bookmaking-data', JSON.stringify(data, null, 2))
+	add_block(dataslug, JSON.stringify(data, null, 2))
 		.then((res) => {
-			console.log(res)
 			notificationpopup('synced with are.na')
 		})
 }
@@ -1085,7 +1105,7 @@ let add_block_to_spread = block => {
 
 	if (block.class == "Image")
 		data[book.current_spread].push(['ImageBlock',
-			['src', block.image.display.url],
+			['src', block.image.original.url],
 			['id', block.id],
 			["x", ["verso", 0, 'x']],
 			["y", ["em", count++ * 12 + 2]],
@@ -1101,12 +1121,15 @@ let add_block_to_spread = block => {
 // ----------------- +x+ --
 getchannel(slug)
 	.then(res => {
+		console.log(res)
 		notificationpopup('got blocks from ' + slug.slice(0, 20) + '...')
 		init(res) })
 
-getchannel('bookmaking-data')
+getchannel(dataslug)
 	.then(res => {
-		notificationpopup('got datafiles from ' + 'bookmaking-data')
+		console.log('length ->', res.length)
+		if (res.length > 98) notificationpopup('AARYAN CHANNEL LARGER THAN 100, FIX THIS')
+		notificationpopup('got datafiles from ' + dataslug)
 		let latest_block = res.contents.sort((a, b) => a.position - b.position).pop()
 		parseintodata(latest_block.content)
 
@@ -1193,17 +1216,21 @@ let renderframeui = (items, i) => {
 	let dimensions = dom('.dimensions')
 	let propopup = (arr) => {
 		console.log(arr)
-		let p = ['opacity']
+		let p = [
+			['opacity', .8],
+			['rotation', 3],
+		]
+
 		let d = dom(['.popup',
 			['button', { onclick: () => d.remove() }, 'x'],
+			...p.map(e => 
 			['button', {
 				onclick: () => {
-					arr.push(['opacity', .8]);
-					console.log(arr)
+					arr.push([...e]);
 					updateui()
 					render();
 				}
-			}, 'opacity']])
+			}, e[0]])])
 
 		document.body.appendChild(d)
 	}
@@ -1432,6 +1459,7 @@ let updatebar = () => {
 		['button', { onclick: nextpage }, 'next'],
 		['button', { onclick: toggledisplay }, display ? 'saddle view' : 'display view'],
 
+		['button', { onclick: togglegrid }, 'grid'],
 		['button', { onclick: savelocal }, 'save'],
 		['button', { onclick: sync }, 'sync'],
 		['button', { onclick: addsheet }, 'add sheet'],
@@ -1466,7 +1494,7 @@ let renderarenaui = (block, foundblocks) => {
 	let block_el = dom('.block' + found, { onclick: () => add_block_to_spread(block), })
 
 	if (block.class == "Text") block_el.appendChild(dom('div', block.content))
-	if (block.class == "Image") block_el.appendChild(dom('img', { src: block.image.display.url }))
+	if (block.class == "Image") block_el.appendChild(dom('img', { src: block.image.original.url }))
 	if (block.class == "Link") block_el.appendChild(dom(['div', ['img', { src: block.image.display.url }], ['p', block.title]]))
 	if (block.class == "Media") block_el.appendChild(dom(['div', ['img', { src: block.image.display.url }], ['p', block.title]]))
 	if (block.class == "Attachment") block_el.appendChild(dom(['div', ['img', { src: block.image.display.url }], ['p', block.title]]))
@@ -1508,8 +1536,9 @@ else data = [[], [], []]
 let render = () => {
 	let spreads = data.map(frames).map(f => new Spread(grid, s, f))
 	spread = book.current_spread
+	let drawgrid = book.grid
 	setTimeout(() => {
-		book = new Book(spreads)
+		book = new Book(spreads, {draw_grid: drawgrid})
 		book.current_spread = spread
 		// canvas.draw_saddle(book)
 		if (display) canvas.draw_book(book)
@@ -1526,9 +1555,27 @@ let init = (channel) => {
 	update_arena_ui()
 }
 
+let viewmode = false
+
+let startviewmode =() => {
+	viewmode = true
+	document.querySelector('.main.container').setAttribute('view-mode', 'true')
+}
+
+let endviewmode =() => {
+	viewmode = false
+	document.querySelector('.main.container').setAttribute('view-mode', 'false')
+}
+
 document.onkeydown = (e) => {
 	if (e.key == 'ArrowRight') nextpage()
 	if (e.key == 'ArrowLeft') prevpage()
+	if (e.key == 'w') togglegrid()
+
+	if (e.key == 'W' || e.key == 'f') {
+		if (viewmode) endviewmode()
+		else startviewmode()
+	}
 }
 
 let defaulttextprops = [

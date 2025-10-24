@@ -30,11 +30,18 @@
 	transition: all 50ms;
 }
 
+.main.container[view-mode='true']{
+	position: fixed;
+	top: 0;
+	left: 0;
+	z-index: 200;
+	background: white;
+}
 .main.container{
 	display: flex;
   /* justify-content: center; */
   /* align-items: center; */
-  padding-left: 3em;
+  /* padding-left: 3em; */
   /* align-items: center; */
 }
 
@@ -86,11 +93,11 @@ button:hover {
 	position: fixed;
   top: 2vh;
   height: 90vh;
-  box-shadow: 0 0 45px 1px #ff09;
+  /* box-shadow: 0 0 45px 1px #ff09; */
   right: .2vw;
   width: 25vw;
   z-index: 99;
-  background: #b4e6a6a1;
+  background: var(--green-one);
   padding: 1em;
   overflow-y: scroll;
 }
@@ -117,7 +124,7 @@ button:hover {
   position: fixed;
 	bottom: 2vh;
 	height: 90vh;
-	right: 2vw;
+	left: 0vw;
   width: 25vw;
 	transition: 300ms all;
 	z-index: 99;
@@ -127,7 +134,7 @@ button:hover {
 }
 
 .arena-ui[closed='true']{
-	bottom: -80vh
+	left: -21vw;
 }
 
 /* .arena-ui[closed='true']:hover{ */
