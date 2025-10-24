@@ -34,7 +34,7 @@ const add_block = (slug, content, title,) => {
 			// TODO: better way to do this
 			// if (title !== "" || title != undefined) return update_block(block_id, { title: title }, slug);
 			// else
-				return data
+			return data
 		});
 };
 const getchannel =
@@ -43,6 +43,7 @@ const getchannel =
 			+ 'channels/'
 			+ slug
 			+ '?per=100&force=true',
+			// + '?per=100',
 			{
 				headers: {
 					Authorization: `Bearer ${auth}`,
@@ -650,6 +651,7 @@ class ImageFrame {
 	}
 
 	draw(p, prop) {
+		if (this.props.hidden == 'true') return
 		let x = typeof this.props.x == 'function' ? this.props.x(prop.structure) : this.props.x
 		let y = typeof this.props.y == 'function' ? this.props.y(prop.structure) : this.props.y
 		// if length/width is given use that to calculate height
@@ -669,14 +671,24 @@ class ImageFrame {
 		}
 
 		if (pop) {
-			p.image(this.image,0,0, w.px, h)
-		 p.pop()
+			p.image(this.image, 0, 0, w.px, h)
+			p.pop()
 		}
 		else {
 			p.image(this.image, x.px, y.px, w.px, h)
 		}
 		p.opacity(1)
 	}
+}
+
+class VideoFrame {
+	constructor(props) {
+		this.props = props
+		// this.image = new Video()
+		// this.image.src = props.src
+	}
+
+	draw(p, prop) {}
 }
 
 class TextFrame {
@@ -689,6 +701,7 @@ class TextFrame {
 	}
 
 	draw(p, prop) {
+		if (this.props.hidden == 'true') return
 		draw_paragraph(p, { text: this.text, font_size: s.point(7), ...this.props }, prop.structure)
 	}
 }
@@ -1025,7 +1038,7 @@ let addsheet = () => {
 	data.push([])
 	data.push([])
 	notificationpopup('Added another sheet')
-	book.set_spread(book.spreads.length-1)
+	book.set_spread(book.spreads.length - 1)
 	updateui()
 	render()
 }
@@ -1034,6 +1047,7 @@ let nextpage = () => {
 	if (spread > book.spreads.length - 2) return
 	spread += 1
 	book.current_spread = spread
+	presentationindex = 0
 	updateui()
 	updatebar()
 	render()
@@ -1043,6 +1057,7 @@ let prevpage = () => {
 	if (spread == 0) return
 	spread -= 1
 	book.current_spread = spread
+	presentationindex = 0
 	updateui()
 	updatebar()
 	render()
@@ -1087,10 +1102,32 @@ let findblockids = () => {
 	return ids
 }
 
+let findpropertyandset = (prop, value) => {
+	// go through data
+	data.forEach(
+		// spreads
+		f => f.forEach(
+
+			// items
+			(d, i) => {
+				let done = false
+				d.forEach(
+
+					// props (look through each prop to find id prop)
+					// can probably cache this....
+					a => {
+						if (Array.isArray(a) && a[0] == 'prop') { a[1] == value; done = true }
+					}
+				)
+				if (!done) d.push([prop, value])
+				f[i] = cleandata(d)
+			}))
+}
+
 let add_block_to_spread = block => {
 	console.log(book.current_spread)
 	if (block.class == "Text")
-		data[book.current_spread].push([
+		data[book.current_spread].push(cleandata([
 			'TextBlock',
 			['text', block.content],
 			['id', block.id],
@@ -1101,7 +1138,19 @@ let add_block_to_spread = block => {
 			["y", ["em", count++ * 12 + 2]],
 			['height', ['em', 12]],
 			['length', ['em', 18]],
+		]))
+
+	if (block.class == "Attachment"
+		&&
+		block.attachment.extension == 'mp4'
+	) {
+
+		data[book.current_spread].push(['VideoBlock',
+			['vidsrc', block.attachment.url],
+			['id', block.id],
+			['length', ['em', 18]],
 		])
+	}
 
 	if (block.class == "Image")
 		data[book.current_spread].push(['ImageBlock',
@@ -1123,7 +1172,8 @@ getchannel(slug)
 	.then(res => {
 		console.log(res)
 		notificationpopup('got blocks from ' + slug.slice(0, 20) + '...')
-		init(res) })
+		init(res)
+	})
 
 getchannel(dataslug)
 	.then(res => {
@@ -1174,6 +1224,7 @@ document.body.appendChild(bar)
 let frame = arr => {
 	if (arr[0] == "TextBlock" || arr[0] == "TextFrame") return new TextFrame(reduceprops(arr.slice(1)))
 	if (arr[0] == "ImageBlock") return new ImageFrame(reduceprops(arr.slice(1)))
+	if (arr[0] == "VideoBlock") return new VideoFrame(reduceprops(arr.slice(1)))
 }
 let frames = arr => arr.map(frame)
 let renderframeui = (items, i) => {
@@ -1190,12 +1241,14 @@ let renderframeui = (items, i) => {
 		}
 	}, 'collapse'])
 
+	let del = dom(['button', { onclick: () => { data[book.current_spread].splice(i, 1); render(); updateui() } }, 'delete'])
+
 	let layerdown = dom(['button', {
 		onclick: () => {
-			if (i != data[book.current_spread].length -1){
+			if (i != data[book.current_spread].length - 1) {
 				let copy = data[book.current_spread][i]
-				data[book.current_spread][i] = data[book.current_spread][i+1]
-				data[book.current_spread][i+1] = copy
+				data[book.current_spread][i] = data[book.current_spread][i + 1]
+				data[book.current_spread][i + 1] = copy
 				render()
 				updateui()
 			}
@@ -1203,10 +1256,10 @@ let renderframeui = (items, i) => {
 	}, 'v'])
 	let layerup = dom(['button', {
 		onclick: () => {
-			if (i != 0){
+			if (i != 0) {
 				let copy = data[book.current_spread][i]
-				data[book.current_spread][i] = data[book.current_spread][i-1]
-				data[book.current_spread][i-1] = copy
+				data[book.current_spread][i] = data[book.current_spread][i - 1]
+				data[book.current_spread][i - 1] = copy
 				render()
 				updateui()
 			}
@@ -1219,27 +1272,35 @@ let renderframeui = (items, i) => {
 		let p = [
 			['opacity', .8],
 			['rotation', 3],
+			['hidden', 'true'],
 		]
 
 		let d = dom(['.popup',
 			['button', { onclick: () => d.remove() }, 'x'],
-			...p.map(e => 
-			['button', {
-				onclick: () => {
-					arr.push([...e]);
-					updateui()
-					render();
-				}
-			}, e[0]])])
+			...p.map(e =>
+				['button', {
+					onclick: () => {
+						arr.push([...e]);
+						updateui()
+						render();
+					}
+				}, e[0]])])
 
 		document.body.appendChild(d)
 	}
 	let addprop = dom(['button', { onclick: () => { propopup(items) } }, '+'])
-	let box = dom('.box', collapse, addprop, layerdown,layerup, dimensions)
+	let box = dom('.box', collapse, addprop, layerdown, layerup, del, dimensions)
 	ui.appendChild(box)
 
 	items.slice(1).forEach(
 		(item, i) => {
+			if (presentationmode) {
+				if (item[0] == 'text') console.log('text')
+				let c = false
+				if (item[0] == 'text' || item[0] == 'src' || item[0] == 'vidsrc') c = true
+				if (!c) return
+			}
+
 			let keylabel = dom(['div.key', item[0]])
 			let property = dom('.property', {
 				onclick: (e) => {
@@ -1407,7 +1468,8 @@ let renderframeui = (items, i) => {
 }
 
 let notificationpopup = (msg) => {
-	let d = dom('.notification', {style: `
+	let d = dom('.notification', {
+		style: `
 		position: fixed;
 		right: -50vw;
 		opactiy: 0;
@@ -1423,9 +1485,9 @@ let notificationpopup = (msg) => {
 
 	document.body.appendChild(d)
 
-	setTimeout(() => {d.style.right = '1em';d.style.opacity= 1}, 5)
-	setTimeout(() => {d.style.opacity = 0}, 5000)
-	setTimeout(() => {d.remove()}, 3500)
+	setTimeout(() => { d.style.right = '1em'; d.style.opacity = 1 }, 5)
+	setTimeout(() => { d.style.opacity = 0 }, 5000)
+	setTimeout(() => { d.remove() }, 3500)
 }
 
 // BAR
@@ -1455,7 +1517,7 @@ let updatebar = () => {
 
 	let d = dom('.actions',
 		['button', { onclick: prevpage }, 'prev'],
-							['span', " " + book.current_spread + " / " + (book.spreads.length - 1)],
+		['span', " " + book.current_spread + " / " + (book.spreads.length - 1)],
 		['button', { onclick: nextpage }, 'next'],
 		['button', { onclick: toggledisplay }, display ? 'saddle view' : 'display view'],
 
@@ -1499,6 +1561,7 @@ let renderarenaui = (block, foundblocks) => {
 	if (block.class == "Media") block_el.appendChild(dom(['div', ['img', { src: block.image.display.url }], ['p', block.title]]))
 	if (block.class == "Attachment") block_el.appendChild(dom(['div', ['img', { src: block.image.display.url }], ['p', block.title]]))
 
+	block_el.appendChild(dom(['p', block.class]))
 	arena_ui_container.appendChild(block_el)
 }
 let update_arena_ui = () => {
@@ -1508,18 +1571,21 @@ let update_arena_ui = () => {
 	console.log(foundblocks)
 	if (Array.isArray(contents)) contents.forEach(c => renderarenaui(c, foundblocks))
 }
+
+let cleandata = (item) => [
+	item[0],
+	...Object.entries(
+		item.slice(1)
+			.reduce((group, prop) => {
+				group[prop[0]] = prop[1]
+				return group
+			}, {}))
+]
+
 let parseintodata = (str) => {
 	let tempdata = JSON.parse(str)
 	let logg = tempdata.map(r => r.reduce((acc, item) => {
-		acc.push([
-			item[0],
-			...Object.entries(
-				item.slice(1)
-					.reduce((group, prop) => {
-						group[prop[0]] = prop[1]
-						return group
-					}, {}))
-		])
+		acc.push(cleandata(item))
 		return acc
 	}, []))
 
@@ -1538,7 +1604,7 @@ let render = () => {
 	spread = book.current_spread
 	let drawgrid = book.grid
 	setTimeout(() => {
-		book = new Book(spreads, {draw_grid: drawgrid})
+		book = new Book(spreads, { draw_grid: drawgrid })
 		book.current_spread = spread
 		// canvas.draw_saddle(book)
 		if (display) canvas.draw_book(book)
@@ -1556,25 +1622,119 @@ let init = (channel) => {
 }
 
 let viewmode = false
+let presentationmode = false
+let presentationindex = 0
 
-let startviewmode =() => {
+let startviewmode = () => {
 	viewmode = true
 	document.querySelector('.main.container').setAttribute('view-mode', 'true')
 }
-
-let endviewmode =() => {
+let endviewmode = () => {
 	viewmode = false
 	document.querySelector('.main.container').setAttribute('view-mode', 'false')
+}
+
+let startpresentationmode = () => {
+	startviewmode()
+	presentationmode = true
+	findpropertyandset('hidden', 'true')
+	render()
+	document.querySelector('.ui').setAttribute('presentation-mode', 'true')
+	updateui()
+}
+
+let endpresentationmode = () => {
+	presentationindex = 0
+	endviewmode()
+	presentationmode = false
+	findpropertyandset('hidden', 'false')
+	render()
+	updateui()
+	document.querySelector('.ui').setAttribute('presentation-mode', 'false')
+	// go through all current page props and make them visible
+}
+
+let decrementpresentationindex = () => {
+	if (presentationindex != 0) presentationindex--
+	for (let i = 0; i < presentationindex; i++) {
+		data[book.current_spread][i].forEach(p => {
+			if (Array.isArray(p) && p[0] == 'hidden') {
+				p[1] = 'false'
+			}
+		})
+	}
+
+	for (let i = presentationindex; i < data[book.current_spread].length; i++) {
+		data[book.current_spread][i].forEach(p => {
+			if (Array.isArray(p) && p[0] == 'hidden') {
+				p[1] = 'true'
+			}
+		})
+	}
+
+	render()
+}
+
+let mountvideo = (src) => {
+	let vid = dom('.video', {
+		style: `
+position: fixed;
+width: 70vw;
+top:5em;
+left:10vw;
+z-index: 220;
+`},
+		['video', {
+			style: 'width: 100%',
+			src, autoplay: true, muted: true
+		}],)
+
+	document.body.appendChild(vid)
+}
+
+let unmountallvideo = () => {
+	document.querySelectorAll('.video').forEach(e => e.remove())
+
+}
+
+let incrementpresentationindex = () => {
+	if (presentationindex != data[book.current_spread].length) presentationindex++
+
+	for (let i = 0; i < presentationindex; i++) {
+		data[book.current_spread][i].forEach(p => {
+			console.log(p[0], i, presentationindex)
+			if (i == presentationindex - 1) {
+				// check if vidsrc prop is there, if yes then make video
+				if (Array.isArray(p) && p[0] == 'vidsrc') {
+					console.log('found video, mounting', p[1])
+					mountvideo(p[1])
+				}
+			}
+
+			if (Array.isArray(p) && p[0] == 'hidden') {
+				p[1] = 'false'
+			}
+		})
+	}
+
+	render()
 }
 
 document.onkeydown = (e) => {
 	if (e.key == 'ArrowRight') nextpage()
 	if (e.key == 'ArrowLeft') prevpage()
+	if (e.key == 'ArrowUp') decrementpresentationindex()
+	if (e.key == 'ArrowDown') incrementpresentationindex()
 	if (e.key == 'w') togglegrid()
-
-	if (e.key == 'W' || e.key == 'f') {
+	if (e.key == 'W') {
 		if (viewmode) endviewmode()
 		else startviewmode()
+	}
+
+	if (e.key == 'X') {unmountallvideo()}
+	if (e.key == 'P') {
+		if (presentationmode) endpresentationmode()
+		else startpresentationmode()
 	}
 }
 
